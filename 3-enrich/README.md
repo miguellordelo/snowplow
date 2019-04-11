@@ -61,6 +61,7 @@ This class instanciates the enrichments based on the configuration and holds a m
     MyEnrichment.parse(enrichmentConfig, schemaKey).map((nm, _).some)
 ```
 This instanciates the enrichment and puts it in the registry, if a configuration exists for the enrichment.
+
 2) In `EnrichmentRegistry` case class, create function `getMyEnrichment`:
 ```scala
 def getMyEnrichment: Option[MyEnrichment] =
