@@ -27,7 +27,7 @@ The **Enrich** process takes raw Snowplow events logged by a [Collector][collect
 
 Files to create:
 - If the new enrichment requires some configuration, JSON schema of this configuration. Examples can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/com.snowplowanalytics.snowplow.enrichments/). `vendor`, `name`, `format`, `version` will be reused in `scala-common-enrich`, as well as the parameters' names when parsing the conf. 
-- JSON schema of the the context added by the enrichment. An example can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/nl.basjes/yauaa_context/jsonschema/1-0-0). `vendor`, `name`, `format`, `version` will be added to context data to create a self-describing JSON. The enrichment process will check that the context added by the enrichment is valid for this schema.
+- JSON schema of the the context added by the enrichment. An example can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/com.iab.snowplow/spiders_and_robots/jsonschema/1-0-0). `vendor`, `name`, `format`, `version` will be added to context data to create a self-describing JSON. The enrichment process will check that the context added by the enrichment is valid for this schema.
 2 more files need to be generated for the context, with `igluctl static generate --with-json-paths <contextSchemaPath>` (`igluctl` can be found [here](https://docs.snowplowanalytics.com/open-source/iglu/igluctl/)): 
   - DDL ([examples](https://github.com/snowplow/iglu-central/tree/master/sql/)): used to create a table in Redshift to store the context of the enrichment.
   - JSON paths ([examples](https://github.com/snowplow/iglu-central/tree/master/jsonpaths/)): used to order the fields of the JSON in the same way that they are in the DDL (because a JSON is not ordered).
@@ -105,13 +105,42 @@ val third =
 
 ### 3. spark-enrich
 
-Integration tests need to be added here.
+The integration tests for the new enrichment need to be added in this project.
 The purpose of these tests is to make sure that the results of the new enrichment are correctly added to the derived contexts of the enriched event.
 
 An example can be found [here](./spark-enrich/src/test/scala/com.snowplowanalytics.snowplow.enrich.spark/good/YauaaEnrichmentCfLineSpec.scala).
 
-The idea is to create lines as they would be received by a collector, and then run an enrich job on these lines, with the new enrichment enabled.
-It's then possible to check in the output of the job that the derived contexts contain the output of the new enrichment, with the correct values.
+The idea is to create lines as they would be written by a collector (e.g. [CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/AccessLogs.html#BasicDistributionFileFormat)),
+and then to run an enrich job on these lines, with the new enrichment enabled.
+It's then possible to check in the output of the job that the derived contexts of the enriched events contain the output of the new enrichment, with the correct values.
+
+To enable the new enrichment in the test job, the function `getEnrichments`
+in [EnrichJobSpec](./spark-enrich/src/test/scala/com.snowplowanalytics.snowplow.enrich.spark/EnrichJobSpec.scala)
+needs to be updated with a new parameter saying if the enrichment should be enabled
+and with the JSON configuration of the enrichment.
+
+**What if the pull request on `iglu-central` with the schemas for the new enrichment has not been merged yet?**
+
+It's still possible to use the new schemas in the integration tests.
+When a new PR is created on `iglu-central`, a new registry is created at this address:
+`http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/<branch_of_PR>`,
+with all the existing schemas and the new ones.
+
+This registry needs to be added to the list of Iglu resolvers used in the tests.
+In [EnrichJobSpec](./spark-enrich/src/test/scala/com.snowplowanalytics.snowplow.enrich.spark/EnrichJobSpec.scala) object,
+add the registry in the value `igluCentralConfig`:
+```scala
+  |{
+    |"name": "Iglu with MyEnrichment schemas",
+    |"priority": 1,
+    |"vendorPrefixes": [ "com.snowplowanalytics" ],
+    |"connection": {
+      |"http": {
+        |"uri": "http://iglucentral-dev.com.s3-website-us-east-1.amazonaws.com/<branch_of_PR>"
+      |}
+    |}
+  |}
+```
 
 --------------------------
 
