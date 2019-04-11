@@ -23,7 +23,7 @@ The **Enrich** process takes raw Snowplow events logged by a [Collector][collect
 - [scala-common-enrich](./scala-common-enrich/): library containing all the enrichments. This library is then used in enrichment jobs like [spark-enrich](./spark-enrich/), [stream-enrich](./stream-enrich/) or [beam-enrich](./beam-enrich/).
 - [spark-enrich](./spark-enrich/): holds the integration tests.
 
-### [Iglu](https://github.com/snowplow/iglu-central/)
+### 1. Iglu
 
 Files to create:
 - If the new enrichment requires some configuration, JSON schema of this configuration. Examples can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/com.snowplowanalytics.snowplow.enrichments/). `vendor`, `name`, `format`, `version` will be reused in `scala-common-enrich`, as well as the parameters' names when parsing the conf. 
@@ -32,9 +32,9 @@ Files to create:
   - DDL ([examples](https://github.com/snowplow/iglu-central/tree/master/sql/)): used to create a table in Redshift to store the context of this enrichment.
   - JSON paths ([examples](https://github.com/snowplow/iglu-central/tree/master/jsonpaths/): used to order the fields of the JSON in the same way that they are in the DDL (because a JSON is not ordered).
 
-### [scala-common-enrich](./scala-common-enrich/):
+### 2. scala-common-enrich
 
-#### File with the new enrichment
+#### 2.a. File with the new enrichment
 
 This file should be created in [registry/](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/registry/).
 
@@ -50,7 +50,7 @@ The unit tests for this example can be found [here](./scala-common-enrich/src/te
 - The enrichment can be correctly instanciated from the configuration.
 - The self-describing JSON returned by the enrichment is correctly formatted and with the correct values.
 
-#### [EnrichmentRegistry](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/EnrichmentRegistry.scala)
+#### 2.b. [EnrichmentRegistry](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/EnrichmentRegistry.scala)
 
 This class instanciates the enrichments based on the configuration and holds a map `enrichment name -> enrichment instance`.
 
@@ -70,7 +70,7 @@ This function returns the instance of the enrichment from the registry.
 
 `"my_enrichment_config"` should be the `name` field of the JSON schema for the configuration of this enrichment.
 
-#### [EnrichmentManager](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/EnrichmentManager.scala)
+#### 2.c. [EnrichmentManager](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/EnrichmentManager.scala)
 
 This is where the events are actually enriched, in the `enrichEvent` function.
 
@@ -102,7 +102,7 @@ val third =
 	...
 ```
 
-### [spark-enrich](./spark-enrich)
+### 3. spark-enrich
 
 Integration tests need to be added here.
 The purpose of these tests is to make sure that the results of the new enrichment are correctly added to the derived contexts of the enriched event.
