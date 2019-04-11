@@ -19,18 +19,18 @@ The **Enrich** process takes raw Snowplow events logged by a [Collector][collect
 ## How to add an enrichment?
 
 3 projects need to be updated:
-- [iglu-central](https://github.com/snowplow/iglu-central): holds the JSON schema(s) required for the enrichments.
-- [scala-common-enrich](./scala-common-enrich/): library containing all the enrichments. This library is then used in enrichment jobs like [spark-enrich](./spark-enrich/), [stream-enrich](./stream-enrich/) or [beam-enrich](./beam-enrich/).
-- [spark-enrich](./spark-enrich/): holds the integration tests.
+1) [iglu-central](https://github.com/snowplow/iglu-central): holds the JSON schema(s) required for the enrichments.
+2) [scala-common-enrich](./scala-common-enrich/): library containing all the enrichments. This library is then used in enrichment jobs like [spark-enrich](./spark-enrich/), [stream-enrich](./stream-enrich/) or [beam-enrich](./beam-enrich/).
+3) [spark-enrich](./spark-enrich/): holds the integration tests.
 
 ### 1. Iglu
 
 Files to create:
 - If the new enrichment requires some configuration, JSON schema of this configuration. Examples can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/com.snowplowanalytics.snowplow.enrichments/). `vendor`, `name`, `format`, `version` will be reused in `scala-common-enrich`, as well as the parameters' names when parsing the conf. 
-- JSON schema of the the context added by the enrichment. An example can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/nl.basjes/yauaa_context/jsonschema/1-0-0). `vendor`, `name`, `format`, `version` will be added to context data to create a self-describing JSON. It will be checked in the enrichment process that the context added by this enrichment is valid for this schema.
+- JSON schema of the the context added by the enrichment. An example can be found [here](https://github.com/snowplow/iglu-central/tree/master/schemas/nl.basjes/yauaa_context/jsonschema/1-0-0). `vendor`, `name`, `format`, `version` will be added to context data to create a self-describing JSON. The enrichment process will check that the context added by the enrichment is valid for this schema.
 2 more files need to be generated for the context, with `igluctl static generate --with-json-paths <contextSchemaPath>` (`igluctl` can be found [here](https://docs.snowplowanalytics.com/open-source/iglu/igluctl/)): 
-  - DDL ([examples](https://github.com/snowplow/iglu-central/tree/master/sql/)): used to create a table in Redshift to store the context of this enrichment.
-  - JSON paths ([examples](https://github.com/snowplow/iglu-central/tree/master/jsonpaths/): used to order the fields of the JSON in the same way that they are in the DDL (because a JSON is not ordered).
+  - DDL ([examples](https://github.com/snowplow/iglu-central/tree/master/sql/)): used to create a table in Redshift to store the context of the enrichment.
+  - JSON paths ([examples](https://github.com/snowplow/iglu-central/tree/master/jsonpaths/)): used to order the fields of the JSON in the same way that they are in the DDL (because a JSON is not ordered).
 
 ### 2. scala-common-enrich
 
@@ -39,9 +39,9 @@ Files to create:
 This file should be created in [registry/](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/registry/).
 
 It should contain 2 things:
-1) Case class that extends `Enrichment` ([here](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/enrichments.scala)) and that holds the logic of the enrichment.
-This class has a function (e.g. `getContext`) that expects parameters from the raw event and returns the result of this enrichment, in a JSON holding the data as well as the name of the schema for these data ([self-describing JSON](https://snowplowanalytics.com/blog/2014/05/15/introducing-self-describing-jsons/)).
-1) Companion object that extends `ParseableEnrichment` ([here](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/enrichments.scala)) and has a function (e.g. `parse`) that can create an instance of the enrichment class from the configuration.
+1) Case class that extends `Enrichment` ([here](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/registry/enrichments.scala)) and that holds the logic of the enrichment.
+This class has a function (e.g. `getContext`) that expects parameters from the raw event and returns the result of the enrichment, in a JSON holding the data as well as the name of the schema for these data ([self-describing JSON](https://snowplowanalytics.com/blog/2014/05/15/introducing-self-describing-jsons/)).
+2) Companion object that extends `ParseableEnrichment` ([here](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/registry/enrichments.scala)) and has a function (e.g. `parse`) that can create an instance of the enrichment class from the configuration.
 
 An example can be found [here](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/registry/YauaaEnrichment.scala).
 
@@ -58,17 +58,17 @@ This class instanciates the enrichments based on the configuration and holds a m
 1) In the method `buildEnrichmentConfig` of the companion object, add a case for the new enrichment and call the function previously created in the companion object of the enrichment.
 ```scala
   case "my_enrichment_config" =>
-	  MyEnrichment.parse(enrichmentConfig, schemaKey).map((nm, _).some)
+    MyEnrichment.parse(enrichmentConfig, schemaKey).map((nm, _).some)
 ```
-This instanciates the enrichment and puts it in the registry, if a configuration exists for this enrichment.
-1) In `EnrichmentRegistry` case class, create function `getMyEnrichment`:
+This instanciates the enrichment and puts it in the registry, if a configuration exists for the enrichment.
+2) In `EnrichmentRegistry` case class, create function `getMyEnrichment`:
 ```scala
 def getMyEnrichment: Option[MyEnrichment] =
   getEnrichment[MyEnrichment]("my_enrichment_config")
 ```
 This function returns the instance of the enrichment from the registry.
 
-`"my_enrichment_config"` should be the `name` field of the JSON schema for the configuration of this enrichment.
+`"my_enrichment_config"` should be the `name` field of the JSON schema for the configuration of the enrichment.
 
 #### 2.c. [EnrichmentManager](./scala-common-enrich/src/main/scala/com.snowplowanalytics.snowplow.enrich/common/enrichments/EnrichmentManager.scala)
 
@@ -79,8 +79,8 @@ This is where the events are actually enriched, in the `enrichEvent` function.
 ```scala
 val myEnrichmentContext = registry.getMyEnrichment match {
   case Some(myEnrichment) =>
-	  myEnrichment
-		  .getContext(event.usergent, event.otherparams)
+    myEnrichment
+      .getContext(event.usergent, event.otherparams)
       .map(_.some)
   case None => None.success
 }
@@ -90,16 +90,16 @@ val myEnrichmentContext = registry.getMyEnrichment match {
 val preparedDerivedContexts =
   ...
   ++ List(myEnrichmentContext).collect {
-	  case Success(Some(context)) => context
-	}
-	++ ...
+    case Success(Some(context)) => context
+  }
+  ++ ...
 ```
 3) Fail the event (will be sent to bad rows) if the enrichment didn't work:
 ```scala
 val third =
   ...
-	myEnrichmentContext.toValidationNel |@|
-	...
+  myEnrichmentContext.toValidationNel |@|
+  ...
 ```
 
 ### 3. spark-enrich
